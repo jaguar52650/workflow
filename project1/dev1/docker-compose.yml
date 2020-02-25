@@ -1,0 +1,68 @@
+version: '3'
+
+services:
+    lemon:
+      image: thecodingmachine/php:7.3-v2-apache-node10
+      labels:
+        - traefik.enable=true
+        - "traefik.http.routers.dev1.rule=Host(`$SITE.$DOMAIN`)"
+        - "traefik.docker.network=gateway"
+      environment:
+        APACHE_DOCUMENT_ROOT: "public/"
+        PHP_EXTENSION_XDEBUG: "1"
+        PHP_INI_MEMORY_LIMIT: "1G"
+      volumes:
+        - ./lemon/:/var/www/html:rw
+      cap_add:
+        - SYS_ADMIN
+      security_opt:
+        - seccomp:unconfined
+      privileged: true
+      depends_on:
+        - mysql
+        - hot
+      networks:
+        - gateway
+        - internal
+    hot:
+      build:
+        context: ./hot
+        dockerfile: ./app.docker
+      healthcheck:
+        disable: true
+      labels:
+        - "traefik.http.routers.hot.rule=Host(`hot.$SITE.$DOMAIN`)"
+        - "traefik.docker.network=gateway"
+      networks:
+        - gateway
+        - internal
+      volumes:
+        - ./lemonguide/:/var/www/html:rw
+        - ./lemonguide/public/:/var/www/html/public:rw
+      entrypoint: ["sudo", "encore", "dev-server", "--port", "80", "--host", "0.0.0.0", "--inline", "--content-base", ".", "--disable-host-check", "--hot", "--public", "http://hot.lemon.dev1.mydomain.ru:80"]
+    mysql:
+      image: mariadb
+      healthcheck:
+        test: "/usr/bin/mysql --user=root --password=$$MYSQL_PASSWORD --execute \"SHOW DATABASES;\""
+        interval: 2s
+        timeout: 20s
+        retries: 10
+      command: ['--character-set-server=utf8', '--collation-server=utf8_unicode_ci', '--skip-character-set-client-handshake', '--sql-mode=']
+      volumes:
+        - ${PWD}/db:/var/lib/mysql
+        - ${PWD}/mysqldump/:/docker-entrypoint-initdb.d/:rw
+      environment:
+        MYSQL_ROOT_PASSWORD: $MYSQL_ROOT_PASSWORD
+        MYSQL_DATABASE: $MYSQL_DATABASE
+        MYSQL_USER: $MYSQL_USER
+        MYSQL_PASSWORD: $MYSQL_PASSWORD
+      networks:
+        - internal
+      labels:
+        - "traefik.enable=false"
+
+networks:        
+    gateway:
+        external: true
+    internal:
+        external: false
