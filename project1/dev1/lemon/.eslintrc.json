@@ -1,0 +1,26 @@
+{
+  "root": true,
+  "parserOptions": {
+    "ecmaVersion": 2018,
+    "sourceType": "module",
+    "parser": "babel-eslint"
+  },
+  "env": {
+    "browser": true,
+    "es6": true
+  },
+  "extends": [
+    "eslint:recommended",
+    "plugin:vue/recommended"
+  ],
+  "rules": {
+     "no-console": "on",
+     "no-debugger": "on",
+     "no-unused-vars": "on",
+     "indent": ["error", 2]
+  },
+  "globals": {
+    "$": false,
+    "jQuery": false
+  }
+}
