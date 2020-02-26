@@ -1,0 +1,39 @@
+stages:
+    - deploy
+    - notify
+
+master:
+    stage: deploy
+    tags:
+        - lemonDeployTag
+    when: manual
+    script:
+        - sshpass -p $SERVER_PROD_PASS ssh -o StrictHostKeyChecking=no -R 9999:$SERVER_GITLAB:22 deployuser@$SERVER_PROD "cd /home/www/lemon/ && git fetch && git checkout -f origin/master && git checkout master && git merge --strategy recursive --strategy-option theirs origin/master && chmod +x after_git_pull.sh && after_git_pull.sh && exit"
+        - sshpass -p $SERVER_PROD_ROOT_PASS ssh -o StrictHostKeyChecking=no root@$SERVER_PROD "nginx -t && service nginx reload && service httpd reload"
+        - "curl -H 'Content-Type: application/json' -X POST \
+                --data '{\
+                    \"chat_id\": 2393,\
+                    \"message\": \"[URL='$CI_PROJECT_URL'/pipelines/'$CI_PIPELINE_ID'] '$CI_PROJECT_NAME' '$CI_BUILD_STAGE' success [/URL]\",\
+                    \"system\":\"Y\"\
+                }' \
+                https://mytasktracker.ru/rest/im.message.add/"
+    only:
+        refs:
+            - master
+
+master_error:
+    stage: notify
+    tags:
+        - lemonDeployTag
+    when: on_failure
+    script:
+        - "curl -H 'Content-Type: application/json' -X POST \
+            --data '{\
+                \"chat_id\": 2393,\
+                \"message\": \"[URL='$CI_PROJECT_URL'/pipelines/'$CI_PIPELINE_ID'] '$CI_PROJECT_NAME' '$CI_BUILD_STAGE' fail [/URL]\",\
+                \"system\":\"Y\"\
+            }' \
+            https://mytasktracker.ru/rest/im.message.add/"
+    only:
+        refs:
+            - master
